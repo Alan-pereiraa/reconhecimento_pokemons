@@ -1,13 +1,3 @@
-"""
-Passo 3 - Reconhece objetos em um video (ou na webcam).
-Uso:
-    python detectar.py meu_video.mp4   -> gera saida_meu_video.mp4
-    python detectar.py 0               -> usa a webcam (q = sair)
-
-Cada frame e classificado sozinho: o modelo olha o frame, devolve as
-probabilidades e o rotulo de maior probabilidade e escrito na tela.
-A preparacao da imagem e a mesma do treino (letterbox do utils.py).
-"""
 import sys
 import os
 import json
@@ -18,7 +8,7 @@ import tensorflow as tf
 
 from utils import letterbox
 
-CLASSE_VAZIA = "fundo"  # classe que significa "nenhum objeto"
+CLASSE_VAZIA = "fundo"
 
 model = tf.keras.models.load_model("modelo.keras")
 class_names = json.load(open("class_names.json"))
@@ -49,8 +39,7 @@ while True:
     i = int(np.argmax(probs))
     rotulo = class_names[i]
 
-    # --- desenho ---
-    texto = "nenhum objeto" if rotulo == CLASSE_VAZIA else rotulo
+    texto = "nenhum Pokemon" if rotulo == CLASSE_VAZIA else rotulo
     cor = (0, 200, 0) if rotulo != CLASSE_VAZIA else (0, 200, 255)
     cv2.rectangle(frame, (0, 0), (frame.shape[1], 40), (0, 0, 0), -1)
     cv2.putText(frame, f"{texto} ({probs[i]:.0%})", (10, 28),

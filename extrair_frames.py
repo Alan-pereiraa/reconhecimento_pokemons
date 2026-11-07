@@ -1,18 +1,3 @@
-"""
-Passo 1 - Extrai frames dos videos gravados.
-Uso: python extrair_frames.py
-
-Estrutura esperada (uma subpasta por classe, varios videos em cada):
-    videos/
-        caneca/ v01_frente_claro.mp4 v02_costas_escuro.mp4 ...
-        estojo/ ...
-        grampeador/ ...
-        fundo/ (videos SEM nenhum objeto: so a mesa, a parede, a mao...)
-
-Saida: data/<classe>/<nome_do_video>__<numero_do_frame>.jpg
-O nome do video fica no nome da foto. O train.py usa isso para separar
-treino e validacao POR VIDEO (evita vazamento de dados).
-"""
 import os
 
 import cv2
@@ -22,9 +7,9 @@ from utils import letterbox, VIDEO_EXT
 
 VIDEOS_DIR = "videos"
 DATA_DIR = "data"
-FRAMES_POR_SEGUNDO = 4  # quantos frames aproveitar por segundo de video
-MAX_POR_VIDEO = 120  # limite por video (equilibra as classes)
-DIFF_MINIMA = 6.0  # descarta frame quase igual ao ultimo salvo (0 = desliga)
+FRAMES_POR_SEGUNDO = 4
+MAX_POR_VIDEO = 120
+DIFF_MINIMA = 6.0
 
 if not os.path.isdir(VIDEOS_DIR):
     raise SystemExit(f"Crie a pasta '{VIDEOS_DIR}/' com uma subpasta por classe.")

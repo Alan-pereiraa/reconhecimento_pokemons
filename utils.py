@@ -1,8 +1,3 @@
-"""
-utils.py - funcoes compartilhadas entre extracao, treino e deteccao.
-REGRA DE OURO: a imagem deve ser preparada EXATAMENTE do mesmo jeito
-no treino e na deteccao. Por isso esta funcao fica num arquivo so.
-"""
 import cv2
 import numpy as np
 
@@ -11,8 +6,6 @@ VIDEO_EXT = (".mp4", ".mov", ".avi", ".mkv", ".webm")
 
 
 def letterbox(frame, size=IMG_SIZE):
-    """Redimensiona mantendo a proporcao e completa com bordas pretas.
-    Assim o objeto nao fica 'esticado' nem cortado."""
     h, w = frame.shape[:2]
     scale = size / max(h, w)
     nh, nw = int(round(h * scale)), int(round(w * scale))

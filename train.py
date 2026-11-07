@@ -1,11 +1,3 @@
-"""
-Passo 2 - Treino com Transfer Learning (MobileNetV2).
-Uso: python train.py
-
-A base (MobileNetV2, pre-treinada na ImageNet) fica congelada e so a
-"cabeca" nova aprende, igual a atividade anterior.
-A diferenca: a validacao e separada POR VIDEO.
-"""
 import os
 import json
 import random
@@ -21,7 +13,7 @@ DATA_DIR = "data"
 IMG_SIZE = 224
 BATCH = 16
 EPOCHS = 8
-VAL_FRACTION = 0.2  # fracao de VIDEOS (nao de fotos) para validacao
+VAL_FRACTION = 0.2
 SEED = 42
 
 random.seed(SEED); np.random.seed(SEED); tf.random.set_seed(SEED)
@@ -30,10 +22,6 @@ class_names = sorted(d for d in os.listdir(DATA_DIR)
                      if os.path.isdir(os.path.join(DATA_DIR, d)))
 print("Classes:", class_names)
 
-# ---- Split POR VIDEO ------------------------------------------------------
-# Frames do mesmo video sao quase iguais. Se um video tiver frames no treino e
-# na validacao, a acuracia fica enganosamente alta. Por isso cada video inteiro
-# vai OU para treino OU para validacao. O nome do video vem antes de "__".
 train_paths, train_y, val_paths, val_y = [], [], [], []
 for idx, cls in enumerate(class_names):
     por_video = defaultdict(list)
@@ -72,8 +60,6 @@ def make_ds(paths, labels, training):
 train_ds = make_ds(train_paths, train_y, True)
 val_ds = make_ds(val_paths, val_y, False)
 
-# Data augmentation (so atua no treino). O flip horizontal simula o objeto
-# virado para o outro lado; a rotacao e o zoom simulam a camera se mexendo.
 augment = tf.keras.Sequential([
     tf.keras.layers.RandomFlip("horizontal"),
     tf.keras.layers.RandomRotation(0.10),
@@ -109,7 +95,6 @@ model.save("modelo.keras")
 with open("class_names.json", "w") as f:
     json.dump(class_names, f)
 
-# ---- Curvas de treino vs validacao ---------------------------------------
 plt.figure(figsize=(10, 4))
 for i, (m, t) in enumerate([("accuracy", "Acuracia"), ("loss", "Loss")]):
     plt.subplot(1, 2, i + 1)
@@ -118,7 +103,6 @@ for i, (m, t) in enumerate([("accuracy", "Acuracia"), ("loss", "Loss")]):
     plt.title(t); plt.xlabel("epoca"); plt.legend()
 plt.tight_layout(); plt.savefig("curvas.png")
 
-# ---- Matriz de confusao + precisao/recall por classe ----------------------
 y_true = np.array(val_y)
 y_pred = np.argmax(model.predict(val_ds, verbose=0), axis=1)
 k = len(class_names)
@@ -138,15 +122,11 @@ for i, c in enumerate(class_names):
     print(f"{c[:12]:<12} {prec:>9.2%} {rec:>8.2%}")
 print(f"\nAcuracia de validacao: {np.trace(cm) / cm.sum():.2%}")
 
-# ---- PDF do dataset (entrega obrigatoria) ---------------------------------
 from PIL import Image, ImageDraw, ImageFont
 
 
 def gerar_pdf_dataset(data_dir="data", saida="dataset_imagens.pdf", cols=10,
                       qualidade=70, max_por_classe=300):
-    """Uma secao por classe. Se houver muitas fotos, pega uma amostra espacada
-    (max_por_classe) para o PDF nao ficar gigante. A legenda mostra quantos
-    videos geraram as fotos daquela classe."""
     pag_w, pag_h, margem, topo = 1240, 1754, 40, 110
     cell = (pag_w - 2 * margem) // cols
     rows = (pag_h - topo - margem) // cell
