@@ -1,110 +1,166 @@
-# Reconhecimento de objetos com CNN
+# Reconhecimento de Pokémon com CNN (sem webcam)
 
-Classifica, frame a frame, o objeto que aparece em um vídeo ou na webcam. O modelo usa transfer learning com a MobileNetV2 pré-treinada na ImageNet: a base fica congelada e só a camada final é treinada.
+Classifica qual Pokémon aparece em uma foto ou em um vídeo. Esta versão foi treinada **só com imagens baixadas da internet**, sem gravar vídeos com webcam, e já traz o modelo treinado (`modelo.keras`). Assim dá para reconhecer os Pokémon num PC sem câmera: basta abrir fotos ou vídeos.
 
-As classes são definidas pelas subpastas de `videos/`. Hoje são `caneca`, `estojo`, `grampeador` e `fundo` (nenhum objeto em cena).
+## Pokémon usados
 
-## Instalação
+| Classe | Pokémon | O que diferencia |
+| --- | --- | --- |
+| `pikachu` | Pikachu (nº 25) | Amarelo, orelhas pontudas com a ponta preta, rabo em forma de raio |
+| `charmander` | Charmander (nº 4) | Laranja, chama na ponta do rabo |
+| `squirtle` | Squirtle (nº 7) | Azul-claro, casco marrom |
+| `fundo` | Nenhum dos 3 | 12 outros Pokémon e 12 imagens vazias |
+
+Os três foram escolhidos por serem os mais fáceis de separar: cada um tem uma cor dominante diferente (amarelo, laranja e azul) e uma silhueta bem distinta. Também existem muitas imagens oficiais de cada um.
+
+A classe `fundo` ensina o modelo a responder "nenhum dos 3". Ela tem Bulbasaur, Jigglypuff, Psyduck, Meowth, Gengar, Magikarp, Eevee, Snorlax, Pidgey, Oddish, Mew e Lapras, além de imagens sem Pokémon (branco, cores lisas, degradês e ruído).
+
+## Métodos de treinamento
+
+### Dados
+
+- **Fonte:** [PokeAPI](https://pokeapi.co), gratuita e sem cadastro. O script `baixar_pokemons.py` baixa a arte oficial, os renders do Pokémon HOME e os sprites dos jogos (gerações I a IX), incluindo sprites de costas e GIFs animados.
+- **O que fica de fora:**
+  - versões *shiny*, porque mudam a cor (o Charmander shiny é amarelo, parecido com o Pikachu);
+  - sprites em preto e branco (*gray*);
+  - variações de fêmea, quase iguais às normais;
+  - ícones minúsculos;
+  - imagens `.svg`.
+- **Classe `fundo`:** 5 imagens sorteadas de cada um dos 12 Pokémon, com semente fixa.
+- **GIFs animados:** até 4 quadros espalhados pela animação, todos no mesmo grupo.
+- **Imagens repetidas:** cada imagem é reduzida a 32×32 e descartada se for quase igual a outra já salva da mesma classe (diferença média menor que 4).
+
+| Classe | Imagens | Treino | Validação |
+| --- | --- | --- | --- |
+| `charmander` | 79 | 65 | 14 |
+| `fundo` | 104 | 85 | 19 |
+| `pikachu` | 96 | 80 | 16 |
+| `squirtle` | 86 | 72 | 14 |
+| **Total** | **365** | **302** | **63** |
+
+### Preparação das imagens
+
+A mesma função prepara a imagem no treino e na detecção (`ler_imagem` e `letterbox`, em `utils.py`):
+
+1. Imagens transparentes (PNG/WEBP) são recortadas no contorno do Pokémon e ganham fundo branco.
+2. A imagem é redimensionada para 224×224 sem distorcer, com bordas pretas onde sobrar espaço.
+
+### Divisão entre treino e validação
+
+Cada imagem (ou GIF) forma um grupo, e 20% dos grupos de cada classe vão para a validação. O grupo inteiro vai só para o treino ou só para a validação, com semente 42. É a mesma regra que o projeto usa para vídeos: assim nenhum quadro de um mesmo GIF fica dos dois lados e infla a acurácia.
+
+### Modelo
+
+- **Transfer learning** com a MobileNetV2 pré-treinada na ImageNet. A base fica congelada e só a camada final é treinada.
+- **Cabeça:** `GlobalAveragePooling2D`, depois `Dropout(0.3)` e `Dense(4, softmax)`.
+- **Data augmentation** (só no treino): espelhamento horizontal, rotação de 10%, zoom de 20%, deslocamento de 10%, brilho de 25% e contraste de 25%.
+- **Treino:** otimizador Adam (taxa 0,001), loss `sparse_categorical_crossentropy`, lotes de 16 e até 8 épocas. O `EarlyStopping` monitora a loss de validação (paciência 3) e restaura os melhores pesos.
+- **Ambiente:** Python 3.12, TensorFlow 2.21 (Keras 3) e OpenCV, só com CPU.
+
+### Resultados
+
+Acurácia de validação: **82,54%**.
+
+Matriz de confusão (linhas = real, colunas = previsto):
+
+| | charmander | fundo | pikachu | squirtle |
+| --- | --- | --- | --- | --- |
+| **charmander** | 14 | 0 | 0 | 0 |
+| **fundo** | 4 | 14 | 1 | 0 |
+| **pikachu** | 3 | 1 | 12 | 0 |
+| **squirtle** | 1 | 1 | 0 | 12 |
+
+| Classe | Precisão | Recall |
+| --- | --- | --- |
+| `charmander` | 63,64% | 100,00% |
+| `fundo` | 87,50% | 73,68% |
+| `pikachu` | 92,31% | 75,00% |
+| `squirtle` | 100,00% | 85,71% |
+
+![Curvas de acurácia e loss](curvas.png)
+
+Testes com imagens que não estavam no treino do jeito que foram testadas:
+
+| Imagem | Resultado |
+| --- | --- |
+| Pikachu fêmea (render do HOME) | pikachu, 72% |
+| Arte oficial do Charmander sobre fundo verde | charmander, 55% |
+| Arte oficial do Squirtle sobre fundo bege | squirtle, 75% |
+| Imagem em branco | nenhum dos 3, 91% |
+| Raichu | pikachu, 54% (erro) |
+
+A arte oficial do Charmander e a do Squirtle estão no treino, mas só com fundo branco. O Raichu sai como Pikachu porque é parecido e não faz parte do treino. Para corrigir, coloque imagens dele em `imagens/fundo/`.
+
+## Como usar
+
+### Instalação
+
+Use o **Python 3.12**: o TensorFlow ainda não instala no Python 3.14. Rode os comandos na raiz do projeto.
+
+**Windows (PowerShell):**
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install tensorflow opencv-python numpy matplotlib pillow
+```
+
+**Linux/macOS:**
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install tensorflow opencv-python numpy matplotlib pillow
 ```
 
-Se o `pip` não encontrar uma versão do TensorFlow, a sua versão do Python ainda não é compatível. Nesse caso, crie o ambiente com uma versão anterior do Python.
+Um modelo salvo com o TensorFlow 2.21 pode não abrir em versões antigas, como a 2.15. Se `detectar_imagem.py` der erro ao carregar o `modelo.keras`, atualize o TensorFlow ou treine de novo.
 
-Rode todos os comandos abaixo a partir da raiz do projeto, pois os scripts usam caminhos relativos.
+### Reconhecer Pokémon (não precisa treinar)
 
-## 1. Gravar os vídeos
-
-Coloque os vídeos na subpasta da classe correspondente:
-
-```
-videos/
-├── caneca/      v01_frente_claro.mp4  v02_costas_escuro.mp4  v03_lado_claro.mp4
-├── estojo/      ...
-├── grampeador/  ...
-└── fundo/       vídeos SEM nenhum objeto (só a mesa, a parede, a mão...)
-```
-
-- Grave pelo menos 3 vídeos por classe. Com menos de 2, o treino é interrompido com erro.
-- Varie o ângulo, a iluminação e a distância entre os vídeos, porque cada vídeo inteiro vai só para o treino ou só para a validação.
-- Formatos aceitos: `.mp4`, `.mov`, `.avi`, `.mkv` e `.webm`.
-- Mantenha o nome `fundo` nessa pasta: o `detectar.py` usa esse nome para mostrar "nenhum objeto".
-
-## 2. Extrair os frames
+O modelo já está pronto no repositório.
 
 ```bash
-python extrair_frames.py
+python detectar_imagem.py foto.png      # uma foto
+python detectar_imagem.py teste/        # todas as fotos da pasta
+python detectar.py meu_video.mp4        # um vídeo
 ```
 
-Os frames são salvos em `data/<classe>/<nome_do_video>__<numero_do_frame>.jpg`. O script aproveita até 4 frames por segundo e 120 por vídeo, e descarta frames quase iguais ao anterior. Ele avisa no final se as classes ficaram desbalanceadas.
+O `detectar_imagem.py` abre uma janela por foto (qualquer tecla passa para a próxima, `q` sai) e salva cada foto com o resultado em `resultados/`. Para não abrir janela, defina `MOSTRAR=0` (no PowerShell: `$env:MOSTRAR=0`).
 
-Se você remover ou trocar vídeos, apague a pasta `data/` antes de extrair de novo. Caso contrário, os frames antigos continuam sendo usados no treino.
-
-## 3. Treinar o modelo
+### Treinar de novo
 
 ```bash
-python train.py
+python baixar_pokemons.py   # baixa as imagens para imagens/ e gera data/
+python train.py             # gera modelo.keras, class_names.json e curvas.png
 ```
 
-Na primeira execução é preciso ter internet, pois os pesos da MobileNetV2 são baixados automaticamente. O treino roda por até 8 épocas e para antes se a loss de validação não melhorar por 3 épocas. Ele funciona sem GPU, só que mais devagar.
+A internet só é necessária na primeira vez. Para melhorar o modelo, coloque fotos suas (do Google, prints do anime, fotos de pelúcia...) em `imagens/<classe>/` e rode os dois comandos de novo. O que já foi baixado não é baixado outra vez.
 
-No terminal aparecem a matriz de confusão, a precisão e o recall por classe e a acurácia de validação. Os arquivos gerados são:
+O treino com vídeos continua funcionando como antes: coloque os vídeos em `videos/<classe>/` e rode `python extrair_frames.py` antes do `train.py`.
+
+### Ajustes
+
+| Script | Constante | Padrão | O que controla |
+| --- | --- | --- | --- |
+| `baixar_pokemons.py` | `CLASSES` | 3 Pokémon e `fundo` | Quais Pokémon baixar em cada classe |
+| `baixar_pokemons.py` | `MAX_POR_POKEMON_FUNDO` | 5 | Imagens de cada Pokémon da classe `fundo` |
+| `baixar_pokemons.py` | `QUADROS_POR_GIF` | 4 | Quadros aproveitados de cada GIF |
+| `baixar_pokemons.py` | `DIFF_MINIMA` | 4.0 | Diferença mínima para não descartar como repetida |
+| `train.py` | `EPOCHS` | 8 | Número máximo de épocas |
+| `train.py` | `VAL_FRACTION` | 0.2 | Fração dos grupos usada na validação |
+
+## Arquivos
 
 | Arquivo | Conteúdo |
 | --- | --- |
 | `modelo.keras` | Modelo treinado |
 | `class_names.json` | Nomes das classes, na ordem usada pelo modelo |
-| `curvas.png` | Curvas de acurácia e loss (treino e validação) |
-| `dataset_imagens.pdf` | Imagens do dataset, com até 300 por classe |
+| `curvas.png` | Curvas de acurácia e loss do treino |
+| `baixar_pokemons.py` | Baixa as imagens e gera `data/` |
+| `train.py` | Treina o modelo |
+| `detectar_imagem.py` | Reconhece Pokémon em fotos |
+| `detectar.py` | Reconhece Pokémon em vídeos ou na webcam |
+| `extrair_frames.py` | Gera `data/` a partir de vídeos (treino com webcam) |
+| `utils.py` | Preparação das imagens, igual no treino e na detecção |
 
-## 4. Rodar o modelo
-
-O `detectar.py` precisa de `modelo.keras` e `class_names.json` na raiz do projeto.
-
-**Em um vídeo:**
-
-```bash
-python detectar.py meu_video.mp4
-```
-
-O vídeo anotado é salvo como `saida_meu_video.mp4`. Durante o processamento, uma janela mostra o resultado. Para não abrir a janela (por exemplo, em um servidor sem interface gráfica), use:
-
-```bash
-MOSTRAR=0 python detectar.py meu_video.mp4
-```
-
-**Na webcam:**
-
-```bash
-python detectar.py 0
-```
-
-Rodar `python detectar.py` sem argumentos também abre a webcam. Use outro número se tiver mais de uma câmera. Pressione `q` com a janela selecionada para sair. O resultado da webcam não é salvo.
-
-Cada frame mostra a classe mais provável com a confiança, uma barra de probabilidade por classe e o tempo do vídeo.
-
-## Ajustes
-
-Os parâmetros ficam em constantes no início de cada script:
-
-| Script | Constante | Padrão | O que controla |
-| --- | --- | --- | --- |
-| `extrair_frames.py` | `FRAMES_POR_SEGUNDO` | 4 | Frames aproveitados por segundo de vídeo |
-| `extrair_frames.py` | `MAX_POR_VIDEO` | 120 | Limite de frames por vídeo |
-| `extrair_frames.py` | `DIFF_MINIMA` | 6.0 | Diferença mínima para o frame anterior (0 desliga o filtro) |
-| `train.py` | `EPOCHS` | 8 | Número máximo de épocas |
-| `train.py` | `BATCH` | 16 | Tamanho do lote |
-| `train.py` | `VAL_FRACTION` | 0.2 | Fração dos vídeos usada na validação |
-
-Para adicionar ou remover uma classe, altere as subpastas de `videos/`, apague `data/` e repita os passos 2 e 3.
-
-## Problemas comuns
-
-- **`'<classe>' tem 0 video(s)`**: a pasta da classe está sem vídeos, ou o `extrair_frames.py` não foi rodado depois de adicioná-los.
-- **`FileNotFoundError` em `data`**: rode o `extrair_frames.py` antes do `train.py`.
-- **Erro ao carregar `modelo.keras`**: rode o `train.py` antes do `detectar.py`.
-- **`Nao consegui abrir: ...`**: confira o caminho do vídeo ou o número da webcam.
-- **Erro em `cv2.imshow`**: não há interface gráfica disponível, ou o pacote instalado é o `opencv-python-headless`. Para vídeos, use `MOSTRAR=0`. A webcam precisa de janela.
+As pastas `imagens/`, `data/` e `resultados/` são geradas pelos scripts e ficam fora do git (`.gitignore`).

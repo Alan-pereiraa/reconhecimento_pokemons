@@ -1,0 +1,6 @@
+imagens/
+data/
+resultados/
+saida_*.mp4
+.venv/
+__pycache__/
