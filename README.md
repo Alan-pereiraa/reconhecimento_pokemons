@@ -136,6 +136,20 @@ python train.py             # gera modelo.keras, class_names.json e curvas.png
 
 A internet só é necessária na primeira vez. Para melhorar o modelo, coloque fotos suas (do Google, prints do anime, fotos de pelúcia...) em `imagens/<classe>/` e rode os dois comandos de novo. O que já foi baixado não é baixado outra vez.
 
+### Treinar só com modelos 3D
+
+```bash
+python baixar_modelos.py    # renders 3D em modelos_3d/, cenários em cenarios/, gera data/
+python train.py
+```
+
+O `baixar_modelos.py` baixa da PokeAPI só os renders 3D (Pokémon HOME, Let's Go, Sword/Shield, BDSP, Legends Arceus, Scarlet/Violet, Legends Z-A e Champions), de frente e de costas, e descarta os que têm menos de 200 px. Também baixa 150 fotos aleatórias do [picsum.photos](https://picsum.photos) para servir de cenário. Cada imagem de `data/` é um modelo colado sobre um cenário sorteado, com tamanho, posição e formato de tela (1:1, 4:3, 16:9 ou 3:4) aleatórios. Na classe `fundo`, 25% das imagens são só o cenário. São 400 imagens por classe (`IMAGENS_POR_CLASSE`).
+
+Para melhorar a detecção:
+
+- **`modelos_3d/<classe>/`**: coloque mais renders. PNG transparente é colado nos cenários. Print de jogo ou foto sem transparência entra do jeito que está.
+- **`cenarios/`**: coloque fotos do lugar onde o modelo vai ser usado.
+
 O treino com vídeos continua funcionando como antes: coloque os vídeos em `videos/<classe>/` e rode `python extrair_frames.py` antes do `train.py`.
 
 ### Ajustes

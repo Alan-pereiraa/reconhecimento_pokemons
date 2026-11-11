@@ -16,7 +16,6 @@ baixado outra vez.
 """
 import json
 import os
-import random
 import re
 import shutil
 import urllib.request
@@ -27,20 +26,17 @@ import numpy as np
 from utils import letterbox, ler_imagem, IMG_EXT
 
 # Os 3 escolhidos: cor dominante e silhueta bem diferentes entre si.
-# "fundo" = tudo que NAO e um dos 3 (outros Pokemon + imagens vazias).
+# classe -> Pokemon (da PokeAPI) cujas imagens entram nela.
 CLASSES = {
-    "pikachu": ["pikachu"],
+    "gengar": ["gengar"],
     "charmander": ["charmander"],
     "squirtle": ["squirtle"],
-    "fundo": ["bulbasaur", "jigglypuff", "psyduck", "meowth", "gengar", "magikarp",
-              "eevee", "snorlax", "pidgey", "oddish", "mew", "lapras"],
 }
 IMAGENS_DIR = "imagens"
 DATA_DIR = "data"
-MAX_POR_POKEMON_FUNDO = 5  # sprites por Pokemon do "fundo" (equilibra as classes)
 QUADROS_POR_GIF = 4  # quadros aproveitados de cada GIF animado
 DIFF_MINIMA = 4.0  # descarta imagem quase igual a outra ja salva (0 = desliga)
-# shiny muda a cor (Charmander shiny e amarelo, igual ao Pikachu!), gray e
+# shiny muda a cor (Charmander shiny e amarelo, Gengar shiny e quase preto), gray e
 # preto e branco, female e quase igual ao normal, icons sao minusculos e
 # dream_world e .svg (o Pillow nao abre).
 IGNORAR = ("shiny", "gray", "female", "icons", "dream_world")
@@ -73,8 +69,9 @@ def urls_dos_sprites(nome):
     return achados
 
 
-def baixar_classe(cls, pokemons):
-    pasta = os.path.join(IMAGENS_DIR, cls)
+def baixar_classe(cls, pokemons, raiz=IMAGENS_DIR, fontes=None):
+    """fontes: regex opcional; so baixa sprites cujo caminho na PokeAPI casa com ela."""
+    pasta = os.path.join(raiz, cls)
     os.makedirs(pasta, exist_ok=True)
     for nome in pokemons:
         try:
@@ -82,9 +79,8 @@ def baixar_classe(cls, pokemons):
         except Exception as e:
             print(f"  ! nao consegui listar {nome}: {e}")
             continue
-        if cls == "fundo":
-            random.Random(SEED).shuffle(achados)
-            achados = achados[:MAX_POR_POKEMON_FUNDO]
+        if fontes is not None:
+            achados = [a for a in achados if fontes.match(a[0])]
         novos = 0
         for texto, url, ext in achados:
             destino = os.path.join(pasta, f"{nome}_{texto}{ext}")
@@ -99,9 +95,9 @@ def baixar_classe(cls, pokemons):
         print(f"  {cls}/{nome}: {len(achados)} imagens ({novos} novas)")
 
 
-def criar_vazias():
-    """Imagens sem Pokemon nenhum (cor lisa, degrade, ruido) para o 'fundo'."""
-    pasta = os.path.join(IMAGENS_DIR, "fundo")
+def criar_vazias(pasta):
+    """Imagens lisas (branco, cor, degrade, ruido) usadas como cenario."""
+    os.makedirs(pasta, exist_ok=True)
     rng = np.random.default_rng(SEED)
     for i in range(12):
         destino = os.path.join(pasta, f"vazio_{i:02d}.png")
@@ -160,7 +156,6 @@ if __name__ == "__main__":
     print("Baixando da PokeAPI...")
     for cls, pokemons in CLASSES.items():
         baixar_classe(cls, pokemons)
-    criar_vazias()
 
     print("\nConvertendo imagens/ -> data/ ...")
     resumo = converter()

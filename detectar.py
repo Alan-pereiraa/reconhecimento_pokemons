@@ -1,11 +1,11 @@
 """
-Passo 3 - Reconhece objetos em um video (ou na webcam).
+Passo 3 - Reconhece o Pokemon em um video (ou na webcam).
 Uso:
     python detectar.py meu_video.mp4   -> gera saida_meu_video.mp4
     python detectar.py 0               -> usa a webcam (q = sair)
 
-Cada frame e classificado sozinho: o modelo olha o frame, devolve as
-probabilidades e o rotulo de maior probabilidade e escrito na tela.
+Cada frame e classificado pelo modelo. Para o nome nao ficar piscando, a
+tela mostra a media das ultimas probabilidades (SUAVIZACAO).
 A preparacao da imagem e a mesma do treino (letterbox do utils.py).
 """
 import sys
@@ -13,12 +13,13 @@ import os
 import json
 
 import cv2
-import numpy as np
 import tensorflow as tf
 
-from utils import letterbox
+from utils import desenhar, escrever, letterbox
 
-CLASSE_VAZIA = "fundo"  # classe que significa "nenhum objeto"
+JANELA = "Reconhecimento de Pokemon"
+LARGURA_JANELA = 960  # a janela abre com essa largura (pode redimensionar)
+SUAVIZACAO = 0.6  # peso da media anterior (0 = cada frame sozinho)
 
 model = tf.keras.models.load_model("modelo.keras")
 class_names = json.load(open("class_names.json"))
@@ -30,13 +31,20 @@ if not cap.isOpened():
     raise SystemExit(f"Nao consegui abrir: {fonte}")
 
 fps = cap.get(cv2.CAP_PROP_FPS) or 30
+w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 writer = None
 if not webcam:
-    w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     saida = f"saida_{os.path.splitext(os.path.basename(fonte))[0]}.mp4"
     writer = cv2.VideoWriter(saida, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
 
-n = 0
+mostrar = webcam or os.environ.get("MOSTRAR", "1") == "1"
+if mostrar:
+    # WINDOW_NORMAL: a janela cabe na tela mesmo com camera 1080p/4K
+    cv2.namedWindow(JANELA, cv2.WINDOW_NORMAL)
+    if w and h:
+        cv2.resizeWindow(JANELA, LARGURA_JANELA, int(LARGURA_JANELA * h / w))
+
+n, media = 0, None
 while True:
     ok, frame = cap.read()
     if not ok:
@@ -46,28 +54,20 @@ while True:
 
     img = cv2.cvtColor(letterbox(frame), cv2.COLOR_BGR2RGB).astype("float32")
     probs = model.predict(img[None], verbose=0)[0]
-    i = int(np.argmax(probs))
-    rotulo = class_names[i]
+    media = probs if media is None else SUAVIZACAO * media + (1 - SUAVIZACAO) * probs
 
-    # --- desenho ---
-    texto = "nenhum objeto" if rotulo == CLASSE_VAZIA else rotulo
-    cor = (0, 200, 0) if rotulo != CLASSE_VAZIA else (0, 200, 255)
-    cv2.rectangle(frame, (0, 0), (frame.shape[1], 40), (0, 0, 0), -1)
-    cv2.putText(frame, f"{texto} ({probs[i]:.0%})", (10, 28),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.9, cor, 2)
-
-    for j, c in enumerate(class_names):
-        y = 55 + j * 22
-        cv2.rectangle(frame, (10, y), (10 + int(probs[j] * 150), y + 14), (0, 200, 255), -1)
-        cv2.putText(frame, c, (170, y + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-    cv2.putText(frame, f"t = {n / fps:5.1f}s", (10, frame.shape[0] - 15),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    desenhar(frame, media, class_names)
+    if not webcam:
+        s = frame.shape[1] / 640
+        texto = f"{n / fps:.1f}s"
+        (tw, _), _ = cv2.getTextSize(texto, cv2.FONT_HERSHEY_DUPLEX, 0.6 * s, 1)
+        escrever(frame, texto, (frame.shape[1] - tw - int(16 * s), frame.shape[0] - int(14 * s)),
+                 0.6 * s, (255, 255, 255))
 
     if writer is not None:
         writer.write(frame)
-    if webcam or os.environ.get("MOSTRAR", "1") == "1":
-        cv2.imshow("Reconhecimento com CNN", frame)
+    if mostrar:
+        cv2.imshow(JANELA, frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
     n += 1
