@@ -32,6 +32,16 @@ LIMIAR = float(os.environ.get("LIMIAR", "0.6"))     # abaixo disso o rotulo vira
 DUVIDA = "?"
 # ---- [GRUPO] melhoria 2 ----
 MIN_TRECHO = 0.5  # segundos: trechos mais curtos sao ignorados na linha do tempo
+# ---- [GRUPO] interface: cor de cada classe (BGR) ----
+# Cor do TIPO de cada Pokemon (Pikachu e Psyduck sao amarelos, entao a cor do
+# corpo nao serviria para diferenciar na tela).
+CORES = {"pikachu": (0, 215, 255),     # eletrico: amarelo
+         "psyduck": (235, 150, 40),    # agua: azul
+         "charmander": (20, 110, 255), # fogo: laranja
+         CLASSE_VAZIA: (200, 200, 200)}
+NOME_NA_TELA = {CLASSE_VAZIA: "nenhum"}  # "fundo" nao diz nada para quem assiste
+CINZA = (150, 150, 150)
+FONTE = cv2.FONT_HERSHEY_DUPLEX
 
 model = tf.keras.models.load_model("modelo.keras")
 class_names = json.load(open("class_names.json"))
@@ -57,12 +67,77 @@ if not ao_vivo:
     saida = f"saida_{os.path.splitext(os.path.basename(fonte))[0]}.mp4"
     writer = abrir_video(saida, fps, (w, h))
 
+
+# ---- [GRUPO] interface ---------------------------------------------------
+def escrever(img, texto, org, escala, cor, esp=1):
+    """Texto com contorno preto: fica legivel em fundo claro ou escuro."""
+    cv2.putText(img, texto, org, FONTE, escala, (0, 0, 0), esp + 3, cv2.LINE_AA)
+    cv2.putText(img, texto, org, FONTE, escala, cor, esp, cv2.LINE_AA)
+
+
+def escurecer(img, x0, y0, x1, y1, forca=0.6):
+    """Faixa semitransparente atras do texto."""
+    img[y0:y1, x0:x1] = (img[y0:y1, x0:x1] * (1 - forca)).astype(np.uint8)
+
+
+def desenhar(frame, probs, rotulo, i):
+    """Desenha o resultado no frame. Tudo escala com a largura (480p a 4K).
+    - faixa no topo: nome na cor do Pokemon, % e barra de confianca com a
+      marca do LIMIAR (abaixo dela o rotulo vira "?");
+    - moldura na cor do Pokemon enquanto ele esta identificado;
+    - painel: uma barra por classe, na cor dela, com a classe atual em destaque."""
+    h, w = frame.shape[:2]
+    s = w / 640
+    grosso = max(1, round(2 * s))
+    if rotulo == DUVIDA:
+        cor, titulo = CINZA, f"? talvez {class_names[i]}"
+    elif rotulo == CLASSE_VAZIA:
+        cor, titulo = CORES[CLASSE_VAZIA], "nenhum Pokemon"
+    else:
+        cor, titulo = CORES.get(rotulo, (255, 255, 255)), rotulo.upper()
+
+    # faixa do topo: nome + porcentagem + barra de confianca
+    topo = int(74 * s)
+    escurecer(frame, 0, 0, w, topo)
+    cv2.rectangle(frame, (0, 0), (int(8 * s), topo), cor, -1)
+    escrever(frame, titulo, (int(20 * s), int(36 * s)), 1.0 * s, cor, grosso)
+    pct = f"{probs[i]:.0%}"
+    (tw, _), _ = cv2.getTextSize(pct, FONTE, 1.0 * s, grosso)
+    escrever(frame, pct, (w - tw - int(16 * s), int(36 * s)), 1.0 * s, (255, 255, 255), grosso)
+    x0, x1, y0, y1 = int(20 * s), w - int(16 * s), int(48 * s), int(62 * s)
+    cv2.rectangle(frame, (x0, y0), (x1, y1), (70, 70, 70), -1)
+    cv2.rectangle(frame, (x0, y0), (x0 + int((x1 - x0) * probs[i]), y1), cor, -1)
+    xl = x0 + int((x1 - x0) * LIMIAR)
+    cv2.line(frame, (xl, y0 - int(4 * s)), (xl, y1 + int(4 * s)), (255, 255, 255), grosso)
+
+    # painel de baixo: barra de cada classe na cor dela
+    lin, larg, alt, fs = int(17 * s), int(90 * s), int(10 * s), 0.38 * s
+    nomes = [NOME_NA_TELA.get(c, c) for c in class_names]
+    rot_larg = max(cv2.getTextSize(c, FONTE, fs, 1)[0][0] for c in nomes)
+    px, py = int(10 * s), h - lin * len(class_names) - int(6 * s)
+    escurecer(frame, 0, py - int(6 * s), px + rot_larg + larg + int(50 * s), h)
+    for j, c in enumerate(class_names):
+        y = py + j * lin
+        cj = CORES.get(c, (255, 255, 255))
+        escrever(frame, nomes[j], (px, y + alt - int(1 * s)), fs, cj)
+        bx = px + rot_larg + int(8 * s)
+        cv2.rectangle(frame, (bx, y), (bx + larg, y + alt), (70, 70, 70), -1)
+        cv2.rectangle(frame, (bx, y), (bx + int(larg * probs[j]), y + alt), cj, -1)
+        if j == i:  # classe mais provavel: contorno branco
+            cv2.rectangle(frame, (bx, y), (bx + larg, y + alt), (255, 255, 255), max(1, round(s)))
+        escrever(frame, f"{probs[j]:.0%}", (bx + larg + int(6 * s), y + alt - int(1 * s)),
+                 fs, (255, 255, 255))
+
+    # moldura na cor do Pokemon identificado (desenhada por cima de tudo)
+    if rotulo not in (DUVIDA, CLASSE_VAZIA):
+        cv2.rectangle(frame, (0, 0), (w - 1, h - 1), cor, max(4, int(8 * s)))
+
+
 # [GRUPO] deque(maxlen=JANELA) guarda so os ultimos JANELA vetores de
 # probabilidade; os mais antigos saem sozinhos.
 ultimas = deque(maxlen=JANELA)
 rotulos = []  # [GRUPO] rotulo final de cada frame, para a linha do tempo
 
-n = 0
 while True:
     ok, frame = cap.read()
     if not ok:
@@ -80,23 +155,7 @@ while True:
     rotulo = class_names[i] if probs[i] >= LIMIAR else DUVIDA
     rotulos.append(rotulo)
 
-    # --- desenho ---
-    if rotulo == DUVIDA:
-        texto, cor = f"? (talvez {class_names[i]})", (180, 180, 180)
-    elif rotulo == CLASSE_VAZIA:
-        texto, cor = "nenhum Pokemon", (0, 200, 255)
-    else:
-        texto, cor = rotulo, (0, 200, 0)
-    cv2.rectangle(frame, (0, 0), (frame.shape[1], 40), (0, 0, 0), -1)
-    cv2.putText(frame, f"{texto} ({probs[i]:.0%})", (10, 28),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.9, cor, 2)
-    for j, c in enumerate(class_names):
-        y = 55 + j * 22
-        cv2.rectangle(frame, (10, y), (10 + int(probs[j] * 150), y + 14), (0, 200, 255), -1)
-        cv2.putText(frame, c, (170, y + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                    (255, 255, 255), 1)
-    cv2.putText(frame, f"t = {n / fps:5.1f}s  janela={JANELA} limiar={LIMIAR:.0%}",
-                (10, frame.shape[0] - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    desenhar(frame, probs, rotulo, i)
 
     if writer is not None:
         writer.write(frame)
@@ -104,7 +163,6 @@ while True:
         cv2.imshow("Reconhecimento com CNN", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
-    n += 1
 
 cap.release()
 if writer is not None:
