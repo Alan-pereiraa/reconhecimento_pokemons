@@ -1,16 +1,22 @@
 """
-Passo 2 - Treino com Transfer Learning (MobileNetV2).
+Passo 2 - Treino com Transfer Learning (MobileNetV2) + Fine-tuning.
 Uso: python train.py
 
-A base (MobileNetV2, pre-treinada na ImageNet) fica congelada e so a
+Fase 1: a base (MobileNetV2, pre-treinada na ImageNet) fica congelada e so a
 "cabeca" nova aprende, igual a atividade anterior.
-A diferenca: a validacao e separada POR VIDEO.
+Fase 2 (MELHORIA 3, implementada pelo grupo): fine-tuning. As ultimas
+camadas da MobileNetV2 sao descongeladas e o treino continua com uma taxa
+de aprendizado bem menor.
+A validacao e separada POR VIDEO.
+
+Experimentos da Parte 5 (sem mudar o codigo):
+    SPLIT=foto python train.py      -> split aleatorio por FOTO (pergunta 1)
+    LR_FINE=1e-3 python train.py    -> fine-tuning com taxa alta (pergunta 2)
 """
 import os
 import json
 import random
 from collections import defaultdict
-
 import numpy as np
 import tensorflow as tf
 import matplotlib
@@ -21,8 +27,14 @@ DATA_DIR = "data"
 IMG_SIZE = 224
 BATCH = 16
 EPOCHS = 8
-VAL_FRACTION = 0.2  # fracao de VIDEOS (nao de fotos) para validacao
+VAL_FRACTION = 0.2          # fracao de VIDEOS (nao de fotos) para validacao
 SEED = 42
+# ---- [GRUPO] parametros do fine-tuning (melhoria 3) ----
+EPOCHS_FINE = 8             # epocas extras da fase 2
+CAMADAS_FINE = 30           # quantas camadas do FIM da MobileNetV2 descongelar
+LR_FINE = float(os.environ.get("LR_FINE", "1e-5"))  # bem menor que o 1e-3 da fase 1
+# ---- [GRUPO] experimento da pergunta 1: "video" (correto) ou "foto" ----
+SPLIT = os.environ.get("SPLIT", "video")
 
 random.seed(SEED); np.random.seed(SEED); tf.random.set_seed(SEED)
 
@@ -43,6 +55,16 @@ for idx, cls in enumerate(class_names):
     videos = sorted(por_video)
     if len(videos) < 2:
         raise SystemExit(f"'{cls}' tem {len(videos)} video(s). Grave pelo menos 3 por classe.")
+    if SPLIT == "foto":
+        # [GRUPO] pergunta 1: split ERRADO de proposito. Sorteia 20% das fotos,
+        # misturando todos os videos -> frames vizinhos caem dos dois lados.
+        fotos = [p for v in videos for p in por_video[v]]
+        random.Random(SEED).shuffle(fotos)
+        n_val = max(1, round(len(fotos) * VAL_FRACTION))
+        val_paths.extend(fotos[:n_val]); val_y.extend([idx] * n_val)
+        train_paths.extend(fotos[n_val:]); train_y.extend([idx] * (len(fotos) - n_val))
+        print(f"  {cls}: {len(fotos) - n_val} treino / {n_val} validacao | split por FOTO")
+        continue
     random.Random(SEED).shuffle(videos)
     n_val = max(1, round(len(videos) * VAL_FRACTION))
     val_videos = set(videos[:n_val])
@@ -103,40 +125,82 @@ model.compile(optimizer=tf.keras.optimizers.Adam(1e-3),
               loss="sparse_categorical_crossentropy", metrics=["accuracy"])
 model.summary()
 
-hist = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS, callbacks=[parar])
+# ---- Fase 1: so a cabeca (base congelada) --------------------------------
+print("\n===== FASE 1: base congelada, so a cabeca aprende =====")
+hist1 = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS, callbacks=[parar])
+
+
+# ---- Matriz de confusao + precisao/recall por classe ----------------------
+# [GRUPO] virou funcao para comparar o modelo ao final da fase 1 e da fase 2
+# (pergunta 2).
+def avaliar(titulo):
+    y_true = np.array(val_y)
+    y_pred = np.argmax(model.predict(val_ds, verbose=0), axis=1)
+    k = len(class_names)
+    cm = np.zeros((k, k), dtype=int)
+    for t, p in zip(y_true, y_pred):
+        cm[t, p] += 1
+
+    print(f"\n----- {titulo} -----")
+    print("Matriz de confusao (linhas = real, colunas = previsto):")
+    print(" " * 11 + " ".join(f"{c[:8]:>8}" for c in class_names))
+    for i, c in enumerate(class_names):
+        print(f"{c[:10]:>10} " + " ".join(f"{v:>8}" for v in cm[i]))
+
+    print("\nClasse        precisao   recall")
+    for i, c in enumerate(class_names):
+        prec = cm[i, i] / max(cm[:, i].sum(), 1)
+        rec = cm[i, i] / max(cm[i, :].sum(), 1)
+        print(f"{c[:12]:<12} {prec:>9.2%} {rec:>8.2%}")
+    print(f"\nAcuracia de validacao: {np.trace(cm) / cm.sum():.2%}")
+
+
+avaliar("Ao final da FASE 1 (so a cabeca)")
+
+# ---- Fase 2: fine-tuning (MELHORIA 3, implementada pelo grupo) -----------
+# A cabeca ja foi treinada na fase 1. So agora descongelamos a base: se ela
+# fosse descongelada com a cabeca aleatoria, os gradientes grandes do inicio
+# destruiriam os filtros pre-treinados.
+base.trainable = True
+for camada in base.layers[:-CAMADAS_FINE]:
+    camada.trainable = False  # so as ultimas CAMADAS_FINE camadas aprendem
+# A base continua sendo chamada com training=False (ver acima): as camadas de
+# BatchNormalization seguem usando as estatisticas da ImageNet.
+
+# Mudou o que e treinavel -> e OBRIGATORIO compilar de novo. Taxa bem menor
+# (1e-5) para os pesos pre-treinados mudarem aos poucos.
+model.compile(optimizer=tf.keras.optimizers.Adam(LR_FINE),
+              loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+n_treinaveis = sum(1 for c in base.layers if c.trainable)
+print(f"\n===== FASE 2: fine-tuning das ultimas {n_treinaveis} camadas, taxa {LR_FINE:g} =====")
+
+epocas_fase1 = len(hist1.history["loss"])
+parar2 = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=3,
+                                          restore_best_weights=True)
+hist2 = model.fit(train_ds, validation_data=val_ds,
+                  epochs=epocas_fase1 + EPOCHS_FINE, initial_epoch=epocas_fase1,
+                  callbacks=[parar2])
 
 model.save("modelo.keras")
 with open("class_names.json", "w") as f:
     json.dump(class_names, f)
 
-# ---- Curvas de treino vs validacao ---------------------------------------
+# ---- Curvas de treino vs validacao (as duas fases) -----------------------
+# [GRUPO] junta os historicos da fase 1 e da fase 2 e marca com uma linha
+# vertical a epoca em que o fine-tuning comeca.
+hist = {m: hist1.history[m] + hist2.history[m] for m in hist1.history}
+epocas = range(1, len(hist["loss"]) + 1)
 plt.figure(figsize=(10, 4))
 for i, (m, t) in enumerate([("accuracy", "Acuracia"), ("loss", "Loss")]):
     plt.subplot(1, 2, i + 1)
-    plt.plot(hist.history[m], label="treino")
-    plt.plot(hist.history["val_" + m], label="validacao")
+    plt.plot(epocas, hist[m], marker="o", label="treino")
+    plt.plot(epocas, hist["val_" + m], marker="o", label="validacao")
+    plt.axvline(epocas_fase1 + 0.5, color="gray", linestyle="--",
+                label="inicio do fine-tuning")
     plt.title(t); plt.xlabel("epoca"); plt.legend()
 plt.tight_layout(); plt.savefig("curvas.png")
 
-# ---- Matriz de confusao + precisao/recall por classe ----------------------
-y_true = np.array(val_y)
-y_pred = np.argmax(model.predict(val_ds, verbose=0), axis=1)
-k = len(class_names)
-cm = np.zeros((k, k), dtype=int)
-for t, p in zip(y_true, y_pred):
-    cm[t, p] += 1
-
-print("\nMatriz de confusao (linhas = real, colunas = previsto):")
-print(" " * 11 + " ".join(f"{c[:8]:>8}" for c in class_names))
-for i, c in enumerate(class_names):
-    print(f"{c[:10]:>10} " + " ".join(f"{v:>8}" for v in cm[i]))
-
-print("\nClasse        precisao   recall")
-for i, c in enumerate(class_names):
-    prec = cm[i, i] / max(cm[:, i].sum(), 1)
-    rec = cm[i, i] / max(cm[i, :].sum(), 1)
-    print(f"{c[:12]:<12} {prec:>9.2%} {rec:>8.2%}")
-print(f"\nAcuracia de validacao: {np.trace(cm) / cm.sum():.2%}")
+avaliar("Ao final da FASE 2 (apos o fine-tuning) - modelo salvo")
 
 # ---- PDF do dataset (entrega obrigatoria) ---------------------------------
 from PIL import Image, ImageDraw, ImageFont

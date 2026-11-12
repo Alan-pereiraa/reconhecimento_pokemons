@@ -1,8 +1,4 @@
-imagens/
-modelos_3d/
-cenarios/
 data/
-resultados/
-saida_*.mp4
+modelos_3d/
 .venv/
 __pycache__/

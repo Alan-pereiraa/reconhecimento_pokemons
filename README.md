@@ -1,180 +1,111 @@
-# Reconhecimento de Pokémon com CNN (sem webcam)
+# Reconhecimento de Pokémon em Vídeo com Deep Learning
 
-Classifica qual Pokémon aparece em uma foto ou em um vídeo. Esta versão foi treinada **só com imagens baixadas da internet**, sem gravar vídeos com webcam, e já traz o modelo treinado (`modelo.keras`). Assim dá para reconhecer os Pokémon num PC sem câmera: basta abrir fotos ou vídeos.
+Atividade de Machine Learning e Deep Learning (6º período de Engenharia de Software). O exemplo da professora reconhecia 3 objetos de mesa. Aqui ele foi adaptado para reconhecer **3 Pokémon em vídeo, vistos de vários ângulos**, e ganhou as três melhorias pedidas na Parte 4.
 
-## Pokémon usados
-
-| Classe | Pokémon | O que diferencia |
+| Classe | Pokémon | Observação |
 | --- | --- | --- |
-| `pikachu` | Pikachu (nº 25) | Amarelo, orelhas pontudas com a ponta preta, rabo em forma de raio |
-| `charmander` | Charmander (nº 4) | Laranja, chama na ponta do rabo |
-| `squirtle` | Squirtle (nº 7) | Azul-claro, casco marrom |
-| `fundo` | Nenhum dos 3 | 12 outros Pokémon e 12 imagens vazias |
+| `pikachu` | Pikachu (nº 25) | amarelo |
+| `psyduck` | Psyduck (nº 54) | também amarelo: o par parecido na cor sugerido na atividade |
+| `charmander` | Charmander (nº 4) | laranja |
+| `fundo` | nenhum | cenário vazio (parede, mesa, objetos) |
 
-Os três foram escolhidos por serem os mais fáceis de separar: cada um tem uma cor dominante diferente (amarelo, laranja e azul) e uma silhueta bem distinta. Também existem muitas imagens oficiais de cada um.
+## De onde vêm os vídeos
 
-A classe `fundo` ensina o modelo a responder "nenhum dos 3". Ela tem Bulbasaur, Jigglypuff, Psyduck, Meowth, Gengar, Magikarp, Eevee, Snorlax, Pidgey, Oddish, Mew e Lapras, além de imagens sem Pokémon (branco, cores lisas, degradês e ruído).
+Os vídeos são gerados a partir dos modelos 3D da [Pokémon 3D API](https://pokemon-3d-api.github.io/Showcase/), indicada pela professora. O `gerar_videos.py` abre cada modelo `.glb` no `<model-viewer>` (o visualizador do Showcase) num Chrome sem janela e grava a câmera girando em volta dele:
 
-## Métodos de treinamento
+- **Ângulos:** cada vídeo mistura frente, costas, lados, de cima (~45°), de baixo, perto (Pokémon ocupando quase a tela) e longe (um terço da tela).
+- **Cenários:** cada classe tem 2 vídeos em cenário claro e 2 em cenário escuro, com parede, mesa e objetos de cores sorteadas. A câmera balança como se estivesse na mão, e cada quadro tem um pouco de ruído de sensor.
+- **Fundo:** 8 vídeos sem Pokémon. O cenário muda a cada segundo, e foram 8 vídeos porque cada vídeo de fundo gera menos fotos e o `extrair_frames.py` avisava que as classes estavam desbalanceadas.
+- **Vídeo de teste:** `videos_teste/teste.mp4`, com 48 s. Os 3 Pokémon aparecem um de cada vez, em ângulos variados, sobre uma toalha xadrez que não aparece no treino.
 
-### Dados
+Vídeos gravados com câmera (pelúcia, carta, ou a tela do Showcase filmada) podem ir para as mesmas pastas `videos/<classe>/`. O `extrair_frames.py` usa todos.
 
-- **Fonte:** [PokeAPI](https://pokeapi.co), gratuita e sem cadastro. O script `baixar_pokemons.py` baixa a arte oficial, os renders do Pokémon HOME e os sprites dos jogos (gerações I a IX), incluindo sprites de costas e GIFs animados.
-- **O que fica de fora:**
-  - versões *shiny*, porque mudam a cor (o Charmander shiny é amarelo, parecido com o Pikachu);
-  - sprites em preto e branco (*gray*);
-  - variações de fêmea, quase iguais às normais;
-  - ícones minúsculos;
-  - imagens `.svg`.
-- **Classe `fundo`:** 5 imagens sorteadas de cada um dos 12 Pokémon, com semente fixa.
-- **GIFs animados:** até 4 quadros espalhados pela animação, todos no mesmo grupo.
-- **Imagens repetidas:** cada imagem é reduzida a 32×32 e descartada se for quase igual a outra já salva da mesma classe (diferença média menor que 4).
+## Como rodar
 
-| Classe | Imagens | Treino | Validação |
-| --- | --- | --- | --- |
-| `charmander` | 79 | 65 | 14 |
-| `fundo` | 104 | 85 | 19 |
-| `pikachu` | 96 | 80 | 16 |
-| `squirtle` | 86 | 72 | 14 |
-| **Total** | **365** | **302** | **63** |
+Python 3.12 ou 3.13. Na raiz do projeto:
 
-### Preparação das imagens
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
+pip install tensorflow numpy matplotlib opencv-python pillow playwright
+```
 
-A mesma função prepara a imagem no treino e na detecção (`ler_imagem` e `letterbox`, em `utils.py`):
+O `gerar_videos.py` usa o Google Chrome instalado. Sem ele, rode `playwright install chromium`.
 
-1. Imagens transparentes (PNG/WEBP) são recortadas no contorno do Pokémon e ganham fundo branco.
-2. A imagem é redimensionada para 224×224 sem distorcer, com bordas pretas onde sobrar espaço.
+```bash
+python gerar_videos.py        # Passo 0: videos/<classe>/ e videos_teste/teste.mp4 (~8 min, precisa de internet)
+python extrair_frames.py      # Passo 1: fotos em data/<classe>/
+python train.py               # Passo 2: modelo.keras, class_names.json, curvas.png, dataset_imagens.pdf
+python detectar.py videos_teste/teste.mp4   # Passo 3: saida_teste.mp4 + linha do tempo
+python detectar.py 0          # webcam (q para sair)
+```
 
-### Divisão entre treino e validação
+Para processar um vídeo sem abrir janela: `MOSTRAR=0 python detectar.py ...`.
 
-Cada imagem (ou GIF) forma um grupo, e 20% dos grupos de cada classe vão para a validação. O grupo inteiro vai só para o treino ou só para a validação, com semente 42. É a mesma regra que o projeto usa para vídeos: assim nenhum quadro de um mesmo GIF fica dos dois lados e infla a acurácia.
+## Melhorias implementadas (Parte 4)
 
-### Modelo
+Os trechos do grupo estão marcados com `[GRUPO]` nos comentários do código.
 
-- **Transfer learning** com a MobileNetV2 pré-treinada na ImageNet. A base fica congelada e só a camada final é treinada.
-- **Cabeça:** `GlobalAveragePooling2D`, depois `Dropout(0.3)` e `Dense(4, softmax)`.
-- **Data augmentation** (só no treino): espelhamento horizontal, rotação de 10%, zoom de 20%, deslocamento de 10%, brilho de 25% e contraste de 25%.
-- **Treino:** otimizador Adam (taxa 0,001), loss `sparse_categorical_crossentropy`, lotes de 16 e até 8 épocas. O `EarlyStopping` monitora a loss de validação (paciência 3) e restaura os melhores pesos.
-- **Ambiente:** Python 3.12, TensorFlow 2.21 (Keras 3) e OpenCV, só com CPU.
+1. **Suavização e limiar de confiança** (`detectar.py`). Um `deque(maxlen=JANELA)` guarda as probabilidades dos últimos 8 frames, e o rótulo usa a média delas. Se a maior probabilidade média ficar abaixo de 60%, a tela mostra `? (talvez <classe>)`. Para testar outros valores: `JANELA=1`, `JANELA=15`, `LIMIAR=0.8`.
+2. **Linha do tempo** (`detectar.py`). Cada frame tem seu rótulo guardado. No final, frames seguidos com o mesmo rótulo viram trechos. Trechos com menos de 0,5 s são descartados, vizinhos iguais são juntados de novo, e `?` e `fundo` ficam de fora.
+3. **Fine-tuning** (`train.py`). Depois da fase 1 (base congelada, Adam 1e-3), as últimas 30 camadas da MobileNetV2 são descongeladas. O modelo é recompilado com Adam 1e-5 e treina até mais 8 épocas. O `curvas.png` junta as duas fases e marca o início do fine-tuning com uma linha tracejada. O terminal mostra a matriz de confusão ao final de cada fase.
 
-### Resultados
+## Resultados
 
-Acurácia de validação: **82,54%**.
+Dados: 1.075 fotos (charmander 273, fundo 277, pikachu 282, psyduck 243). A validação usa vídeos inteiros: 1 vídeo de cada Pokémon e 2 de fundo.
 
-Matriz de confusão (linhas = real, colunas = previsto):
-
-| | charmander | fundo | pikachu | squirtle |
-| --- | --- | --- | --- | --- |
-| **charmander** | 14 | 0 | 0 | 0 |
-| **fundo** | 4 | 14 | 1 | 0 |
-| **pikachu** | 3 | 1 | 12 | 0 |
-| **squirtle** | 1 | 1 | 0 | 12 |
-
-| Classe | Precisão | Recall |
-| --- | --- | --- |
-| `charmander` | 63,64% | 100,00% |
-| `fundo` | 87,50% | 73,68% |
-| `pikachu` | 92,31% | 75,00% |
-| `squirtle` | 100,00% | 85,71% |
-
-![Curvas de acurácia e loss](curvas.png)
-
-Testes com imagens que não estavam no treino do jeito que foram testadas:
-
-| Imagem | Resultado |
+| Modelo | Acurácia de validação |
 | --- | --- |
-| Pikachu fêmea (render do HOME) | pikachu, 72% |
-| Arte oficial do Charmander sobre fundo verde | charmander, 55% |
-| Arte oficial do Squirtle sobre fundo bege | squirtle, 75% |
-| Imagem em branco | nenhum dos 3, 91% |
-| Raichu | pikachu, 54% (erro) |
+| Fase 1 (só a cabeça) | 99,33% (1 charmander → psyduck, 1 fundo → charmander) |
+| Fase 2 (após fine-tuning) | 100,00% |
 
-A arte oficial do Charmander e a do Squirtle estão no treino, mas só com fundo branco. O Raichu sai como Pikachu porque é parecido e não faz parte do treino. Para corrigir, coloque imagens dele em `imagens/fundo/`.
+![Curvas](curvas.png)
 
-## Como usar
+Linha do tempo no vídeo de teste (`saida_teste.mp4`). No roteiro, o Pikachu aparece de 2 a 15 s, o Psyduck de 17,5 a 30,5 s e o Charmander de 33 a 46 s:
 
-### Instalação
-
-Use o **Python 3.12**: o TensorFlow ainda não instala no Python 3.14. Rode os comandos na raiz do projeto.
-
-**Windows (PowerShell):**
-
-```powershell
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install tensorflow opencv-python numpy matplotlib pillow
+```
+Linha do tempo (Pokemon identificados):
+     2.6s a   15.4s  ->  pikachu
+    18.1s a   23.5s  ->  psyduck
+    24.2s a   30.8s  ->  psyduck
+    33.5s a   46.4s  ->  charmander
+Pokemon encontrados no video: ['charmander', 'pikachu', 'psyduck']
 ```
 
-**Linux/macOS:**
+O Psyduck foi partido em dois trechos porque, por volta de 24 s, ele fica pequeno e longe e a confiança média cai abaixo de 60% (`?`).
 
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install tensorflow opencv-python numpy matplotlib pillow
-```
+A validação alta não quer dizer que o modelo funciona no mundo real. Todos os vídeos usam o **mesmo modelo 3D** de cada Pokémon, então um vídeo de validação novo ainda se parece muito com o treino. Uma pelúcia ou carta filmada na webcam tende a ir pior. Esse é um bom ponto para discutir no relatório.
 
-Um modelo salvo com o TensorFlow 2.21 pode não abrir em versões antigas, como a 2.15. Se `detectar_imagem.py` der erro ao carregar o `modelo.keras`, atualize o TensorFlow ou treine de novo.
+## Experimentos da Parte 5
 
-### Reconhecer Pokémon (não precisa treinar)
+| Pergunta | Como rodar |
+| --- | --- |
+| 1. Split por vídeo × por foto | `SPLIT=foto python train.py` e compare com `python train.py` |
+| 2. Fine-tuning com taxa alta | `LR_FINE=1e-3 python train.py` |
+| 3. Pokémon de costas fora do treino | `python gerar_videos.py sem-costas pikachu`, apague `data/`, rode `extrair_frames.py` e `train.py`, depois `python gerar_videos.py costas pikachu` e `python detectar.py videos_teste/costas_pikachu.mp4` |
+| 4. Pokémon desconhecido | `python gerar_videos.py desconhecido 1` (1 = Bulbasaur) e `python detectar.py videos_teste/desconhecido_1.mp4` |
+| 5. Dois Pokémon no mesmo quadro | `python gerar_videos.py dupla` e `python detectar.py videos_teste/dupla.mp4` |
 
-O modelo já está pronto no repositório.
+Cada `train.py` sobrescreve `modelo.keras`. Ao terminar um experimento, rode o treino normal de novo.
 
-```bash
-python detectar_imagem.py foto.png      # uma foto
-python detectar_imagem.py teste/        # todas as fotos da pasta
-python detectar.py meu_video.mp4        # um vídeo
-```
+## Entrega
 
-O `detectar_imagem.py` abre uma janela por foto (qualquer tecla passa para a próxima, `q` sai) e salva cada foto com o resultado em `resultados/`. Para não abrir janela, defina `MOSTRAR=0` (no PowerShell: `$env:MOSTRAR=0`).
-
-### Treinar de novo
-
-```bash
-python baixar_pokemons.py   # baixa as imagens para imagens/ e gera data/
-python train.py             # gera modelo.keras, class_names.json e curvas.png
-```
-
-A internet só é necessária na primeira vez. Para melhorar o modelo, coloque fotos suas (do Google, prints do anime, fotos de pelúcia...) em `imagens/<classe>/` e rode os dois comandos de novo. O que já foi baixado não é baixado outra vez.
-
-### Treinar só com modelos 3D
-
-```bash
-python baixar_modelos.py    # renders 3D em modelos_3d/, cenários em cenarios/, gera data/
-python train.py
-```
-
-O `baixar_modelos.py` baixa da PokeAPI só os renders 3D (Pokémon HOME, Let's Go, Sword/Shield, BDSP, Legends Arceus, Scarlet/Violet, Legends Z-A e Champions), de frente e de costas, e descarta os que têm menos de 200 px. Também baixa 150 fotos aleatórias do [picsum.photos](https://picsum.photos) para servir de cenário. Cada imagem de `data/` é um modelo colado sobre um cenário sorteado, com tamanho, posição e formato de tela (1:1, 4:3, 16:9 ou 3:4) aleatórios. Na classe `fundo`, 25% das imagens são só o cenário. São 400 imagens por classe (`IMAGENS_POR_CLASSE`).
-
-Para melhorar a detecção:
-
-- **`modelos_3d/<classe>/`**: coloque mais renders. PNG transparente é colado nos cenários. Print de jogo ou foto sem transparência entra do jeito que está.
-- **`cenarios/`**: coloque fotos do lugar onde o modelo vai ser usado.
-
-O treino com vídeos continua funcionando como antes: coloque os vídeos em `videos/<classe>/` e rode `python extrair_frames.py` antes do `train.py`.
-
-### Ajustes
-
-| Script | Constante | Padrão | O que controla |
-| --- | --- | --- | --- |
-| `baixar_pokemons.py` | `CLASSES` | 3 Pokémon e `fundo` | Quais Pokémon baixar em cada classe |
-| `baixar_pokemons.py` | `MAX_POR_POKEMON_FUNDO` | 5 | Imagens de cada Pokémon da classe `fundo` |
-| `baixar_pokemons.py` | `QUADROS_POR_GIF` | 4 | Quadros aproveitados de cada GIF |
-| `baixar_pokemons.py` | `DIFF_MINIMA` | 4.0 | Diferença mínima para não descartar como repetida |
-| `train.py` | `EPOCHS` | 8 | Número máximo de épocas |
-| `train.py` | `VAL_FRACTION` | 0.2 | Fração dos grupos usada na validação |
+| Item | Arquivo |
+| --- | --- |
+| 1. Imagens por classe | `dataset_imagens.pdf` |
+| 2. Vídeo de teste anotado e linha do tempo | `saida_teste.mp4` + print do terminal |
+| 3. Códigos comentados | `train.py`, `detectar.py` (e `gerar_videos.py`) |
+| 4. Curvas e matriz de confusão | `curvas.png` + print do terminal do `train.py` |
+| 5. Relatório da Parte 5 | (a fazer) |
 
 ## Arquivos
 
-| Arquivo | Conteúdo |
+| Arquivo | O que faz |
 | --- | --- |
-| `modelo.keras` | Modelo treinado |
-| `class_names.json` | Nomes das classes, na ordem usada pelo modelo |
-| `curvas.png` | Curvas de acurácia e loss do treino |
-| `baixar_pokemons.py` | Baixa as imagens e gera `data/` |
-| `train.py` | Treina o modelo |
-| `detectar_imagem.py` | Reconhece Pokémon em fotos |
-| `detectar.py` | Reconhece Pokémon em vídeos ou na webcam |
-| `extrair_frames.py` | Gera `data/` a partir de vídeos (treino com webcam) |
-| `utils.py` | Preparação das imagens, igual no treino e na detecção |
+| `gerar_videos.py` | Gera os vídeos de treino e de teste a partir dos modelos 3D |
+| `utils.py` | `letterbox`, igual no treino e na detecção (código da professora) |
+| `extrair_frames.py` | Extrai as fotos dos vídeos para `data/` (código da professora) |
+| `train.py` | Treina o modelo: fase 1 + fine-tuning |
+| `detectar.py` | Reconhece Pokémon em vídeo ou webcam, com suavização, limiar e linha do tempo |
 
-As pastas `imagens/`, `data/` e `resultados/` são geradas pelos scripts e ficam fora do git (`.gitignore`).
+`modelos_3d/` (cache dos `.glb`) e `data/` são gerados pelos scripts e ficam fora do git.
