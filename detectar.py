@@ -23,7 +23,7 @@ from collections import deque
 import cv2
 import numpy as np
 import tensorflow as tf
-from utils import letterbox
+from utils import abrir_video, letterbox
 
 CLASSE_VAZIA = "fundo"  # classe que significa "nenhum Pokemon"
 # ---- [GRUPO] melhoria 1 ----
@@ -55,7 +55,7 @@ writer = None
 if not ao_vivo:
     w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     saida = f"saida_{os.path.splitext(os.path.basename(fonte))[0]}.mp4"
-    writer = cv2.VideoWriter(saida, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+    writer = abrir_video(saida, fps, (w, h))
 
 # [GRUPO] deque(maxlen=JANELA) guarda so os ultimos JANELA vetores de
 # probabilidade; os mais antigos saem sozinhos.

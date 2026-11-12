@@ -38,6 +38,8 @@ from multiprocessing import Pool
 import cv2
 import numpy as np
 
+from utils import abrir_video
+
 # Classe -> numero na Pokedex. Pikachu e Psyduck sao ambos amarelos (sugestao
 # da atividade: deixa o problema mais interessante).
 POKEMON = {"pikachu": 25, "psyduck": 54, "charmander": 4}
@@ -291,7 +293,7 @@ def gravar(job):
                 b = document.getElementById('mv1'); a.style.width = '50%';
                 b.style.display = 'block'; }""")
 
-        writer = cv2.VideoWriter(job["saida"], cv2.VideoWriter_fourcc(*"mp4v"), FPS, (LARGURA, ALTURA))
+        writer = abrir_video(job["saida"], FPS, (LARGURA, ALTURA))
         exposicao = rng.uniform(0.8, 1.2)
         fundo, objetos = montar_cenario(rng, job["cenario"])
         pagina.evaluate("window.aplicar", {"cena": objetos, "fundo": fundo, "px": 0, "py": 0,

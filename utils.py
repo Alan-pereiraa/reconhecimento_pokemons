@@ -21,3 +21,14 @@ def letterbox(frame, size=IMG_SIZE):
     y0, x0 = (size - nh) // 2, (size - nw) // 2
     canvas[y0:y0 + nh, x0:x0 + nw] = resized
     return canvas
+
+
+def abrir_video(saida, fps, tamanho):
+    """VideoWriter em H.264 (avc1). Com mp4v o QuickTime, o Safari e o VS Code
+    do macOS mostram so uma tela verde. Se o OpenCV desta maquina nao tiver
+    H.264 (comum no Windows), grava em mp4v."""
+    for codec in ("avc1", "mp4v"):
+        writer = cv2.VideoWriter(saida, cv2.VideoWriter_fourcc(*codec), fps, tamanho)
+        if writer.isOpened():
+            return writer
+    raise SystemExit(f"Nao consegui criar o video: {saida}")
