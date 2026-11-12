@@ -1,0 +1,131 @@
+{
+ "video": "videos_teste/teste.mp4",
+ "fps": 8.0,
+ "frames": 388,
+ "janela": 8,
+ "limiar": 0.6,
+ "trechos": [
+  {
+   "ini": 0.0,
+   "fim": 2.0,
+   "verdade": "fundo",
+   "n": 8,
+   "acerto": 1.0,
+   "rotulos": {
+    "fundo": 8
+   },
+   "prob_media": {
+    "charmander": 0.093,
+    "fundo": 0.905,
+    "pikachu": 0.002,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.905
+  },
+  {
+   "ini": 2.0,
+   "fim": 15.0,
+   "verdade": "pikachu",
+   "n": 96,
+   "acerto": 0.9270833333333334,
+   "rotulos": {
+    "pikachu": 89,
+    "?": 7
+   },
+   "prob_media": {
+    "charmander": 0.077,
+    "fundo": 0.001,
+    "pikachu": 0.921,
+    "psyduck": 0.001
+   },
+   "conf_max_media": 0.936
+  },
+  {
+   "ini": 15.0,
+   "fim": 17.5,
+   "verdade": "fundo",
+   "n": 12,
+   "acerto": 1.0,
+   "rotulos": {
+    "fundo": 12
+   },
+   "prob_media": {
+    "charmander": 0.076,
+    "fundo": 0.92,
+    "pikachu": 0.003,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.92
+  },
+  {
+   "ini": 17.5,
+   "fim": 30.5,
+   "verdade": "psyduck",
+   "n": 96,
+   "acerto": 0.9270833333333334,
+   "rotulos": {
+    "psyduck": 89,
+    "?": 7
+   },
+   "prob_media": {
+    "charmander": 0.123,
+    "fundo": 0.008,
+    "pikachu": 0.001,
+    "psyduck": 0.868
+   },
+   "conf_max_media": 0.89
+  },
+  {
+   "ini": 30.5,
+   "fim": 33.0,
+   "verdade": "fundo",
+   "n": 12,
+   "acerto": 1.0,
+   "rotulos": {
+    "fundo": 12
+   },
+   "prob_media": {
+    "charmander": 0.078,
+    "fundo": 0.919,
+    "pikachu": 0.003,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.919
+  },
+  {
+   "ini": 33.0,
+   "fim": 46.0,
+   "verdade": "charmander",
+   "n": 96,
+   "acerto": 1.0,
+   "rotulos": {
+    "charmander": 96
+   },
+   "prob_media": {
+    "charmander": 0.994,
+    "fundo": 0.005,
+    "pikachu": 0.0,
+    "psyduck": 0.001
+   },
+   "conf_max_media": 0.994
+  },
+  {
+   "ini": 46.0,
+   "fim": 48.5,
+   "verdade": "fundo",
+   "n": 12,
+   "acerto": 1.0,
+   "rotulos": {
+    "fundo": 12
+   },
+   "prob_media": {
+    "charmander": 0.073,
+    "fundo": 0.924,
+    "pikachu": 0.003,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.924
+  }
+ ],
+ "acerto_frames": 0.9578
+}

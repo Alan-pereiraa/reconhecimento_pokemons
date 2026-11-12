@@ -1,0 +1,28 @@
+{
+ "frames_com_os_dois": 116,
+ "frames_vazios": 20,
+ "prob_media_inteiro": {
+  "charmander": 0.159,
+  "fundo": 0.001,
+  "pikachu": 0.524,
+  "psyduck": 0.315
+ },
+ "A_top1": {
+  "acha_os_dois": 0.0,
+  "acha_so_um": 0.94,
+  "acha_errado": 0.06,
+  "vazio_com_pokemon_falso": 0.0
+ },
+ "B_top2": {
+  "acha_os_dois": 0.043,
+  "acha_so_um": 0.922,
+  "acha_errado": 0.233,
+  "vazio_com_pokemon_falso": 0.0
+ },
+ "C_janelas": {
+  "acha_os_dois": 0.922,
+  "acha_so_um": 0.078,
+  "acha_errado": 0.845,
+  "vazio_com_pokemon_falso": 0.0
+ }
+}

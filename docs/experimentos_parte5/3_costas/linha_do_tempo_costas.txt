@@ -1,0 +1,4 @@
+Linha do tempo (Pokemon identificados):
+     2.1s a    7.6s  ->  pikachu
+     8.1s a   16.8s  ->  pikachu
+Pokemon encontrados no video: ['pikachu']

@@ -1,0 +1,4 @@
+Linha do tempo (Pokemon identificados):
+     2.9s a    7.0s  ->  charmander
+     8.9s a   15.2s  ->  charmander
+Pokemon encontrados no video: ['charmander']

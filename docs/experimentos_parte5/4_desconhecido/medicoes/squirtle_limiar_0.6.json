@@ -1,0 +1,61 @@
+{
+ "video": "videos_teste/desconhecido_7.mp4",
+ "fps": 8.0,
+ "frames": 144,
+ "janela": 8,
+ "limiar": 0.6,
+ "trechos": [
+  {
+   "ini": 0.0,
+   "fim": 1.5,
+   "verdade": "fundo",
+   "n": 4,
+   "acerto": 1.0,
+   "rotulos": {
+    "fundo": 4
+   },
+   "prob_media": {
+    "charmander": 0.04,
+    "fundo": 0.959,
+    "pikachu": 0.001,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.959
+  },
+  {
+   "ini": 1.5,
+   "fim": 16.5,
+   "verdade": "desconhecido",
+   "n": 112,
+   "acerto": null,
+   "rotulos": {
+    "charmander": 112
+   },
+   "prob_media": {
+    "charmander": 0.885,
+    "fundo": 0.016,
+    "pikachu": 0.006,
+    "psyduck": 0.092
+   },
+   "conf_max_media": 0.892
+  },
+  {
+   "ini": 16.5,
+   "fim": 18.0,
+   "verdade": "fundo",
+   "n": 4,
+   "acerto": 1.0,
+   "rotulos": {
+    "fundo": 4
+   },
+   "prob_media": {
+    "charmander": 0.035,
+    "fundo": 0.963,
+    "pikachu": 0.002,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.963
+  }
+ ],
+ "acerto_frames": 1.0
+}

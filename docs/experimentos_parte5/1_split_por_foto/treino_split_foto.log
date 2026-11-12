@@ -1,0 +1,49 @@
+Classes: ['charmander', 'fundo', 'pikachu', 'psyduck']
+  charmander: 227 treino / 57 validacao | split por FOTO
+  fundo: 226 treino / 57 validacao | split por FOTO
+  pikachu: 232 treino / 58 validacao | split por FOTO
+  psyduck: 208 treino / 52 validacao | split por FOTO
+===== FASE 1: base congelada, so a cabeca aprende =====
+Epoch 1/8: accuracy: 0.8275 - loss: 0.4921 - val_accuracy: 0.9866 - val_loss: 0.0730
+Epoch 2/8: accuracy: 0.9888 - loss: 0.0893 - val_accuracy: 0.9866 - val_loss: 0.0362
+Epoch 3/8: accuracy: 0.9910 - loss: 0.0531 - val_accuracy: 1.0000 - val_loss: 0.0202
+Epoch 4/8: accuracy: 0.9955 - loss: 0.0314 - val_accuracy: 0.9911 - val_loss: 0.0175
+Epoch 5/8: accuracy: 0.9978 - loss: 0.0238 - val_accuracy: 1.0000 - val_loss: 0.0116
+Epoch 6/8: accuracy: 0.9966 - loss: 0.0222 - val_accuracy: 1.0000 - val_loss: 0.0074
+Epoch 7/8: accuracy: 0.9966 - loss: 0.0184 - val_accuracy: 1.0000 - val_loss: 0.0067
+Epoch 8/8: accuracy: 0.9978 - loss: 0.0146 - val_accuracy: 1.0000 - val_loss: 0.0060
+----- Ao final da FASE 1 (so a cabeca) -----
+Matriz de confusao (linhas = real, colunas = previsto):
+           charmand    fundo  pikachu  psyduck
+charmander       57        0        0        0
+     fundo        0       57        0        0
+   pikachu        0        0       58        0
+   psyduck        0        0        0       52
+Classe        precisao   recall
+charmander     100.00%  100.00%
+fundo          100.00%  100.00%
+pikachu        100.00%  100.00%
+psyduck        100.00%  100.00%
+Acuracia de validacao: 100.00%
+===== FASE 2: fine-tuning das ultimas 30 camadas, taxa 1e-05 =====
+Epoch 9/16: accuracy: 0.9765 - loss: 0.1001 - val_accuracy: 1.0000 - val_loss: 0.0060
+Epoch 10/16: accuracy: 0.9922 - loss: 0.0545 - val_accuracy: 1.0000 - val_loss: 0.0047
+Epoch 11/16: accuracy: 0.9888 - loss: 0.0409 - val_accuracy: 1.0000 - val_loss: 0.0036
+Epoch 12/16: accuracy: 0.9899 - loss: 0.0411 - val_accuracy: 1.0000 - val_loss: 0.0021
+Epoch 13/16: accuracy: 0.9944 - loss: 0.0316 - val_accuracy: 1.0000 - val_loss: 0.0017
+Epoch 14/16: accuracy: 0.9966 - loss: 0.0262 - val_accuracy: 1.0000 - val_loss: 0.0013
+Epoch 15/16: accuracy: 0.9899 - loss: 0.0346 - val_accuracy: 1.0000 - val_loss: 0.0014
+Epoch 16/16: accuracy: 0.9978 - loss: 0.0204 - val_accuracy: 1.0000 - val_loss: 6.1365
+----- Ao final da FASE 2 (apos o fine-tuning) - modelo salvo -----
+Matriz de confusao (linhas = real, colunas = previsto):
+           charmand    fundo  pikachu  psyduck
+charmander       57        0        0        0
+     fundo        0       57        0        0
+   pikachu        0        0       58        0
+   psyduck        0        0        0       52
+Classe        precisao   recall
+charmander     100.00%  100.00%
+fundo          100.00%  100.00%
+pikachu        100.00%  100.00%
+psyduck        100.00%  100.00%
+Acuracia de validacao: 100.00%

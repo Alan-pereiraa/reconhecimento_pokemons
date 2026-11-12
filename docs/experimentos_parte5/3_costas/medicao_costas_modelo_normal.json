@@ -1,0 +1,62 @@
+{
+ "video": "videos_teste/costas_pikachu.mp4",
+ "fps": 8.0,
+ "frames": 144,
+ "janela": 8,
+ "limiar": 0.6,
+ "trechos": [
+  {
+   "ini": 0.0,
+   "fim": 1.5,
+   "verdade": "fundo",
+   "n": 4,
+   "acerto": 1.0,
+   "rotulos": {
+    "fundo": 4
+   },
+   "prob_media": {
+    "charmander": 0.039,
+    "fundo": 0.959,
+    "pikachu": 0.001,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.959
+  },
+  {
+   "ini": 1.5,
+   "fim": 16.5,
+   "verdade": "pikachu",
+   "n": 112,
+   "acerto": 0.9553571428571429,
+   "rotulos": {
+    "pikachu": 107,
+    "?": 5
+   },
+   "prob_media": {
+    "charmander": 0.064,
+    "fundo": 0.001,
+    "pikachu": 0.935,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.95
+  },
+  {
+   "ini": 16.5,
+   "fim": 18.0,
+   "verdade": "fundo",
+   "n": 4,
+   "acerto": 1.0,
+   "rotulos": {
+    "fundo": 4
+   },
+   "prob_media": {
+    "charmander": 0.035,
+    "fundo": 0.963,
+    "pikachu": 0.002,
+    "psyduck": 0.0
+   },
+   "conf_max_media": 0.963
+  }
+ ],
+ "acerto_frames": 0.9583
+}

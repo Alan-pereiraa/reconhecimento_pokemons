@@ -1,0 +1,7 @@
+Linha do tempo (Pokemon identificados):
+     4.0s a    5.2s  ->  charmander
+     5.5s a    6.1s  ->  psyduck
+     6.4s a    9.2s  ->  charmander
+    10.0s a   12.2s  ->  charmander
+    14.1s a   16.6s  ->  charmander
+Pokemon encontrados no video: ['charmander', 'psyduck']

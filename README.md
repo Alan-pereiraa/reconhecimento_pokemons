@@ -96,7 +96,7 @@ Cada `train.py` sobrescreve `modelo.keras`. Ao terminar um experimento, rode o t
 | 2. Vídeo de teste anotado e linha do tempo | `saida_teste.mp4` + print do terminal |
 | 3. Códigos comentados | `train.py`, `detectar.py` (e `gerar_videos.py`) |
 | 4. Curvas e matriz de confusão | `curvas.png` + print do terminal do `train.py` |
-| 5. Relatório da Parte 5 | (a fazer) |
+| 5. Relatório da Parte 5 | `relatorio_parte5.pdf` (provas em `docs/experimentos_parte5/`) |
 
 ## Arquivos
 
